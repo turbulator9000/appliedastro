@@ -1,0 +1,244 @@
+<!-- faint math + astro symbols drifting behind the page. turned on per page with `symbols: true` in front matter -->
+<canvas id="symbol-field" aria-hidden="true"></canvas>
+<style>
+  #symbol-field {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+</style>
+<script>
+  (function () {
+    var canvas = document.getElementById('symbol-field');
+    var ctx = canvas.getContext('2d');
+    var glyphs = [
+      // calculus + analysis
+      '∫', '∬', '∭', '∮', '∑', '∏', '∂', '∇', '∞', 'lim', 'dx', 'dy', 'dt', 'du', "f'(x)", 'f(x)', 'Δx', 'ε', 'δ',
+      '∫₀^∞', '∫ₐᵇ', '∑ₙ', 'n!', '√x', '∛', 'ln x', 'log', 'sin', 'cos', 'tan', 'sec', 'arctan', 'sinh', 'cosh',
+      'eˣ', 'e^iπ', 'x²', 'x³', 'xⁿ', '1/x', 'O(n)', 'Γ(s)', 'ζ(s)', 'B(a,b)', 'erf',
+      // greek
+      'α', 'β', 'γ', 'Γ', 'Δ', 'ζ', 'η', 'θ', 'Θ', 'κ', 'λ', 'Λ', 'μ', 'ν', 'ξ', 'π', 'ρ', 'σ', 'Σ', 'τ', 'φ', 'Φ', 'χ', 'ψ', 'Ψ', 'ω', 'Ω',
+      // sets, logic, linear algebra
+      'ℝ', 'ℂ', 'ℕ', 'ℤ', 'ℚ', '∈', '∉', '⊂', '∪', '∩', '∅', '∀', '∃', '⇒', '⇔', '≈', '≡', '≠', '≤', '≥', '±', '∝', '⊗', '⊕',
+      'det', 'tr', 'Aᵀ', '|ψ⟩', '⟨φ|', '‖v‖', 'x̂', '∇·E', '∇×B', '∇²φ', '□',
+      // physics
+      'ħ', 'ℏω', 'F=ma', 'E=mc²', 'E=hν', 'pV=nRT', 'S=k ln W', 'Hψ=Eψ', 'c', 'G', 'kB', 'σT⁴', 'L=T−V', 'p=mv', 'τ', 'Ω',
+      // astro
+      '☉', '☽', '☾', '★', '☆', '✦', '✧', '⋆', '·', '∗', '☿', '♀', '♁', '♂', '♃', '♄', '♅', '♆',
+      'M☉', 'L☉', 'R☉', 'H₀', 'z', 'AU', 'pc', 'kpc', 'Mpc', 'ly', 'GM/r²', 'λ/D', 'v=H₀d', 'T²∝a³', 'r_s=2GM/c²',
+      'm−M', 'B−V', 'Ωm', 'ΩΛ', 'CMB', '21cm', 'Hα', 'z≈0.1', 'Δλ/λ', 'ℓ', 'RA', 'Dec'
+    ];
+
+    var INK = [61, 57, 41];        // resting symbol color
+    var GLOW = [20, 170, 182];     // light blue when lit up
+    var HOVER_PAD = 20;             // symbols light up only when the cursor is on them (or within this many px)
+    var REPEL_PAD = 6;             // extra space symbols keep between each other
+    var REPEL_STRENGTH = 0.025;    // how hard neighbors push apart (lower = softer)
+    var VISCOSITY = 0.04;          // how much neighbors share velocity, so they flow together like water
+    var MAX_RIPPLES = 6;           // oldest ripple is dropped past this, so spam-clicking stays cheap
+    var RIPPLE_SPEED = 5;
+    var RIPPLE_MAX_R = 280;
+    var SIZE = 13;                 // every symbol is the same size (px)
+    var DENSITY = 4000;            // screen pixels per symbol (lower = more symbols)
+    var MAX_SYMBOLS = 400;
+    var FONT = 'px ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w, h, items = [], ripples = [];
+    var mouse = { x: 0, y: 0, active: false };
+
+    function makeItem(anywhere) {
+      var size = SIZE;
+      var item = {
+        text: glyphs[Math.floor(Math.random() * glyphs.length)],
+        x: Math.random() * w,
+        y: anywhere ? Math.random() * h : h + 40,
+        vx: 0,
+        vy: 0,
+        size: size,
+        speed: 0.07 + Math.random() * 0.1,
+        sway: 6 + Math.random() * 14,
+        phase: Math.random() * Math.PI * 2,
+        spin: (Math.random() - 0.5) * 0.0015,
+        angle: (Math.random() - 0.5) * 0.4,
+        alpha: 0.045 + Math.random() * 0.065,
+        glow: 0
+      };
+      ctx.font = size + FONT;
+      // treat each symbol as a circle about as wide as its text
+      item.r = Math.max(size * 0.5, ctx.measureText(item.text).width * 0.5);
+      return item;
+    }
+
+    function resize() {
+      w = window.innerWidth;
+      h = window.innerHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var count = Math.round(Math.min(MAX_SYMBOLS, (w * h) / DENSITY));
+      items = [];
+      for (var k = 0; k < count; k++) items.push(makeItem(true));
+    }
+
+    function step() {
+      var n = items.length, i, j, a, b;
+
+      // drift: ease each symbol's velocity back toward a slow upward float
+      for (i = 0; i < n; i++) {
+        a = items[i];
+        a.vx += (0 - a.vx) * 0.015;
+        a.vy += (-a.speed - a.vy) * 0.015;
+      }
+
+      // soft repulsion + viscosity: neighbors gently push apart and drag each other along,
+      // which makes crowds of symbols swirl and flow instead of bouncing (400 symbols is ~80k pairs, still cheap)
+      for (i = 0; i < n; i++) {
+        a = items[i];
+        for (j = i + 1; j < n; j++) {
+          b = items[j];
+          var dx = b.x - a.x, dy = b.y - a.y;
+          var min = a.r + b.r + REPEL_PAD;
+          if (dx > min || dx < -min || dy > min || dy < -min) continue;
+          var d2 = dx * dx + dy * dy;
+          if (d2 >= min * min || d2 === 0) continue;
+          var d = Math.sqrt(d2);
+          var overlap = (min - d) / min;
+          var f = overlap * overlap * REPEL_STRENGTH;  // eases in, no hard edge
+          var nx = dx / d, ny = dy / d;
+          a.vx -= nx * f; a.vy -= ny * f;
+          b.vx += nx * f; b.vy += ny * f;
+          var v = overlap * VISCOSITY;
+          var dvx = (b.vx - a.vx) * v, dvy = (b.vy - a.vy) * v;
+          a.vx += dvx; a.vy += dvy;
+          b.vx -= dvx; b.vy -= dvy;
+        }
+      }
+
+      // ripples: an expanding ring that shoves and lights up the symbols it passes
+      for (var k = ripples.length - 1; k >= 0; k--) {
+        var rp = ripples[k];
+        rp.r += RIPPLE_SPEED;
+        if (rp.r > RIPPLE_MAX_R) { ripples.splice(k, 1); continue; }
+        var strength = 1 - rp.r / RIPPLE_MAX_R;
+        for (i = 0; i < n; i++) {
+          a = items[i];
+          var rx = a.x - rp.x, ry = a.y - rp.y;
+          var rd = Math.sqrt(rx * rx + ry * ry) || 1;
+          if (Math.abs(rd - rp.r) < 24) {
+            a.vx += rx / rd * 0.08 * strength;
+            a.vy += ry / rd * 0.08 * strength;
+            a.glow = Math.max(a.glow, strength);
+          }
+        }
+      }
+
+      // move, light up near the cursor, and recycle symbols that float off screen
+      for (i = 0; i < n; i++) {
+        a = items[i];
+        a.x += a.vx;
+        a.y += a.vy;
+        a.angle += a.spin;
+        if (a.x < -40) a.x += w + 80;
+        else if (a.x > w + 40) a.x -= w + 80;
+        if (a.y < -40 || a.y > h + 80) { items[i] = makeItem(false); continue; }
+        lightFromCursor(a);
+      }
+    }
+
+    // fully lit while the cursor is over the symbol, fading out over HOVER_PAD px beyond its edge
+    function hoverAmount(a, md) {
+      if (md <= a.r) return 1;
+      return Math.max(0, 1 - (md - a.r) / HOVER_PAD);
+    }
+
+    function lightFromCursor(a) {
+      var target = 0;
+      if (mouse.active) {
+        var mx = a.x - mouse.x, my = a.y - mouse.y;
+        var md = Math.sqrt(mx * mx + my * my);
+        target = hoverAmount(a, md);
+      }
+      a.glow += (target - a.glow) * (target > a.glow ? 0.25 : 0.05);
+    }
+
+    function draw(t) {
+      ctx.clearRect(0, 0, w, h);
+
+      for (var k = 0; k < ripples.length; k++) {
+        var rp = ripples[k];
+        ctx.globalAlpha = 0.35 * (1 - rp.r / RIPPLE_MAX_R);
+        ctx.strokeStyle = 'rgb(' + GLOW.join(',') + ')';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (var i = 0; i < items.length; i++) {
+        var s = items[i];
+        var gl = s.glow;
+        var cr = Math.round(INK[0] + (GLOW[0] - INK[0]) * gl);
+        var cg = Math.round(INK[1] + (GLOW[1] - INK[1]) * gl);
+        var cb = Math.round(INK[2] + (GLOW[2] - INK[2]) * gl);
+        ctx.save();
+        ctx.translate(s.x + (reduceMotion ? 0 : Math.sin(t / 4000 + s.phase) * s.sway), s.y);
+        ctx.rotate(s.angle);
+        ctx.globalAlpha = s.alpha + (0.85 - s.alpha) * gl;
+        ctx.fillStyle = 'rgb(' + cr + ',' + cg + ',' + cb + ')';
+        ctx.font = s.size + FONT;
+        ctx.fillText(s.text, 0, 0);
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function frame(t) {
+      step();
+      draw(t);
+      requestAnimationFrame(frame);
+    }
+
+    // with reduced motion: nothing drifts or ripples, but hovering still lights symbols up
+    function staticRedraw() {
+      for (var i = 0; i < items.length; i++) {
+        var a = items[i];
+        var mx = a.x - mouse.x, my = a.y - mouse.y;
+        var md = Math.sqrt(mx * mx + my * my);
+        a.glow = mouse.active ? hoverAmount(a, md) : 0;
+      }
+      draw(0);
+    }
+
+    // the canvas ignores the pointer (so links still work), so listen on the window instead
+    window.addEventListener('pointermove', function (e) {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+      mouse.active = e.pointerType === 'mouse';
+      if (reduceMotion) staticRedraw();
+    });
+    document.documentElement.addEventListener('pointerleave', function () {
+      mouse.active = false;
+      if (reduceMotion) staticRedraw();
+    });
+    window.addEventListener('pointerdown', function (e) {
+      if (reduceMotion) return;
+      if (ripples.length >= MAX_RIPPLES) ripples.shift();
+      ripples.push({ x: e.clientX, y: e.clientY, r: 0 });
+    });
+    window.addEventListener('resize', function () {
+      resize();
+      if (reduceMotion) draw(0);
+    });
+
+    resize();
+    if (reduceMotion) draw(0);
+    else requestAnimationFrame(frame);
+  })();
+</script>
