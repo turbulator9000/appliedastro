@@ -1,0 +1,16 @@
+---
+layout: default
+title: tags
+permalink: /tags/
+---
+<h1>tags</h1>
+
+{% assign tags = site.tags | sort %}
+{% for tag in tags %}
+  <h2 id="{{ tag[0] | slugify }}"><span class="tag" style="font-size: 16px;">{{ tag[0] }}</span></h2>
+  <ul>
+    {% for post in tag[1] %}
+      <li><a href="{{ post.url | relative_url }}">{{ post.title }}</a> <span class="muted">· {{ post.date | date: '%b %-d, %Y' | downcase }}</span></li>
+    {% endfor %}
+  </ul>
+{% endfor %}

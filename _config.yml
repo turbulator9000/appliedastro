@@ -1,0 +1,31 @@
+# site settings — edit these freely
+title: "evan's awesome blog (AppliedAstro)"
+description: notes on my sugoi applied math + astrophysics major life
+author: evan
+
+# if the repo is named <username>.github.io, leave baseurl empty.
+# if it's any other name (e.g. "math-log"), set baseurl: "/math-log"
+baseurl: "/appliedastro"
+url: ""
+
+permalink: /:year/:month/:day/:title/
+
+# every post uses the post layout, so front matter only needs title + tags
+defaults:
+  - scope:
+      type: posts
+    values:
+      layout: post
+
+# markdown + math: kramdown turns $$...$$ into \( \) / \[ \], which KaTeX then renders
+markdown: kramdown
+kramdown:
+  input: GFM
+  math_engine: mathjax
+  syntax_highlighter: rouge
+
+exclude:
+  - HOW-TO-POST.md
+  - README.md
+  - Gemfile
+  - Gemfile.lock

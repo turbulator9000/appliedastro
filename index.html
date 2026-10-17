@@ -1,0 +1,18 @@
+---
+layout: default
+symbols: true
+---
+<section class="hero">
+  <h1>evan's awesome blog <span class="sub">(AppliedAstro)</span></h1>
+  <p class="muted">{{ site.description }}</p>
+</section>
+
+<ul class="post-list">
+  {% for post in site.posts %}
+    <li>
+      <span class="date">{{ post.date | date: '%b %-d, %Y' | downcase }}</span>
+      <a class="title" href="{{ post.url | relative_url }}">{{ post.title }}</a>
+      {% for tag in post.tags %}<a class="tag" href="{{ '/tags/' | relative_url }}#{{ tag | slugify }}">{{ tag }}</a>{% endfor %}
+    </li>
+  {% endfor %}
+</ul>

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if page.title %}{{ page.title }} · {% endif %}{{ site.title }}</title>
+  <meta name="description" content="{{ page.description | default: site.description }}">
+  {% include katex.html %}
+  <style>
+    :root {
+      --ink: #2b2a26;
+      --muted: #7a766c;
+      --paper: #faf9f5;
+      --card: #f3f1ea;
+      --line: rgba(43, 42, 38, 0.12);
+      --accent: #1499a2;
+      --accent-light: #64dce1;
+      --accent-soft: #d6f8fa;
+      --sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      font-size: 17px;
+      line-height: 1.7;
+      color: var(--ink);
+      background: var(--paper);
+    }
+
+    a { color: var(--accent); text-underline-offset: 3px; }
+    a:hover { text-decoration-thickness: 2px; }
+
+    .site-nav, main, footer { position: relative; z-index: 1; }
+
+    .site-nav {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 20px;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 22px 16px 0;
+    }
+
+    .site-nav a { color: var(--muted); text-decoration: none; }
+    .site-nav .brand {
+      margin-right: auto;
+            font-size: 19px;
+      color: var(--ink);
+    }
+    .site-nav a:hover { color: var(--accent); }
+
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 40px 16px 80px;
+    }
+
+    h1, h2, h3 {
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    h1 { font-size: 2.1em; letter-spacing: -0.01em; }
+
+    .muted { color: var(--muted); }
+
+    .tag {
+      display: inline-block;
+      padding: 0 9px;
+      margin-right: 4px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 13px;
+      text-decoration: none;
+    }
+
+    code, pre { font-family: var(--mono); font-size: 0.86em; }
+    :not(pre) > code { padding: 1px 5px; border-radius: 4px; background: var(--card); }
+
+    pre {
+      padding: 14px;
+      overflow-x: auto;
+      border-radius: 10px;
+      background: var(--card);
+    }
+
+    img { max-width: 100%; }
+
+    blockquote {
+      margin: 0;
+      padding-left: 16px;
+      border-left: 3px solid var(--accent-light);
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    /* long display equations scroll sideways instead of breaking the page on phones */
+    .katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+
+    /* landing page */
+    .hero { padding: 48px 0 24px; }
+    .hero h1 { font-size: clamp(2.2em, 7vw, 3.2em); margin: 0 0 10px; }
+    .hero h1 .sub { color: #2bb3bd; font-weight: 400; }
+    .post-list { list-style: none; padding: 0; margin: 24px 0 0; }
+    .post-list li { padding: 18px 0; border-top: 1px solid var(--line); }
+    .post-list .date { font-size: 14px; color: var(--muted); }
+    .post-list .title {
+      display: block;
+      margin: 2px 0 6px;
+            font-size: 22px;
+      color: var(--ink);
+      text-decoration: none;
+    }
+    .post-list .title:hover { color: var(--accent); }
+
+    footer {
+      padding: 24px 16px;
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  {% if page.symbols %}{% include symbol-field.html %}{% endif %}
+  <nav class="site-nav">
+    <a class="brand" href="{{ '/' | relative_url }}">{{ site.title }}</a>
+    <a href="{{ '/' | relative_url }}">posts</a>
+    <a href="{{ '/tags/' | relative_url }}">tags</a>
+  </nav>
+
+  <main>
+    {{ content }}
+  </main>
+
+  <footer>{{ site.author }} · {{ 'now' | date: '%Y' }}</footer>
+</body>
+</html>
