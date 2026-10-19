@@ -89,7 +89,23 @@
       background: var(--card);
     }
 
-    img { max-width: 100%; }
+    img { max-width: 100%; height: auto; }
+
+    /* images in posts: centered, slightly rounded. an italic line right under one becomes its caption */
+    main p > img {
+      display: block;
+      margin: 8px auto;
+      border-radius: 8px;
+    }
+    main p > img + br { display: none; }
+    main p > img + em,
+    main p > img + br + em {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+    }
 
     blockquote {
       margin: 0;
